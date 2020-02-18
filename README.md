@@ -14,4 +14,4 @@ The midterm project aims to develop a deep learning model which can identify the
 ## References
 
 - Starter EDA and Basic Model [Kaggle notebook 1](https://www.kaggle.com/kaushal2896/bengali-graphemes-starter-eda-multi-output-cnn)
-- Mode related codes about EDA [Kaggle notebook 2](https://www.kaggle.com/gpreda/bengali-ai-handwritten-grapheme-getting-started) 
+- Mode codes about EDA [Kaggle notebook 2](https://www.kaggle.com/gpreda/bengali-ai-handwritten-grapheme-getting-started) 
