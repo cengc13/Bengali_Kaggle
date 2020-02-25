@@ -15,7 +15,12 @@ import seaborn as sns
 import pandas as pd
 import numpy as np
 import cv2
-
+import albumentations as A
+##########################################################################
+# Those utility functions are forked from others' notebooks
+# https://www.kaggle.com/kaushal2896/bengali-graphemes-starter-eda-multi-output-cnn
+# https://www.kaggle.com/gpreda/bengali-ai-handwritten-grapheme-getting-started
+#########################################################################
 def get_n(df, field, n, class_map_df, top=True):
     top_graphemes = df.groupby([field]).size().reset_index(name='counts')['counts'].sort_values(ascending=not top)[:n]
     top_grapheme_roots = top_graphemes.index
@@ -37,16 +42,40 @@ def image_from_char(char, width, height):
     return image
 
 
-def resize(df, size=64, need_progress_bar=True):
+def resize(df, size, augment=False, need_progress_bar=True):
     resized = {}
     resize_size=size
+    angle=0
     if need_progress_bar:
         for i in tqdm(range(df.shape[0])):
+            #image = cv2.resize(df.loc[df.index[i]].values.reshape(137,236),(size,size),None,fx=0.5,fy=0.5,interpolation=cv2.INTER_AREA)
             image=df.loc[df.index[i]].values.reshape(137,236)
+            #Centering
+            if augment:
+	            image_center = tuple(np.array(image.shape[1::-1]) / 2)
+	            matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+	            image = cv2.warpAffine(image, matrix, image.shape[1::-1], flags=cv2.INTER_LINEAR,
+	                            borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
+	            #Scaling
+	            matrix = cv2.getRotationMatrix2D(image_center, 0, 1.0)
+	            image = cv2.warpAffine(image, matrix, image.shape[1::-1], flags=cv2.INTER_LINEAR,
+	                            borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
+	            #Removing Blur
+	            #aug = A.GaussianBlur(p=1.0)
+	            #image = aug(image=image)['image']
+	            #Noise Removing
+	            #augNoise=A.MultiplicativeNoise(p=1.0)
+	            #image = augNoise(image=image)['image']
+	            #Removing Distortion
+	            #augDist=A.ElasticTransform(sigma=50, alpha=1, alpha_affine=10, p=1.0)
+	            #image = augDist(image=image)['image']
+	            #Brightness
+	            augBright=A.RandomBrightnessContrast(p=1.0)
+	            image = augBright(image=image)['image']
             _, thresh = cv2.threshold(image, 30, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
             contours, _ = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
 
-            idx = 0 
+            idx = 0
             ls_xmin = []
             ls_ymin = []
             ls_xmax = []
@@ -65,11 +94,41 @@ def resize(df, size=64, need_progress_bar=True):
 
             roi = image[ymin:ymax,xmin:xmax]
             resized_roi = cv2.resize(roi, (resize_size, resize_size),interpolation=cv2.INTER_AREA)
+            #image=affine_image(image)
+            #image= crop_resize(image)
+            #image = cv2.resize(image,(size,size),interpolation=cv2.INTER_AREA)
+            #image=resize_image(image,(64,64))
+            #image = cv2.resize(image,(size,size),interpolation=cv2.INTER_AREA)
+            #gaussian_3 = cv2.GaussianBlur(image, (5,5), cv2.BORDER_DEFAULT) #unblur
+            #image = cv2.addWeighted(image, 1.5, gaussian_3, -0.5, 0, image)
+            #kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]]) #filter
+            #image = cv2.filter2D(image, -1, kernel)
+            #ret,image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
             resized[df.index[i]] = resized_roi.reshape(-1)
     else:
         for i in range(df.shape[0]):
             #image = cv2.resize(df.loc[df.index[i]].values.reshape(137,236),(size,size),None,fx=0.5,fy=0.5,interpolation=cv2.INTER_AREA)
             image=df.loc[df.index[i]].values.reshape(137,236)
+            if augment:
+	            image_center = tuple(np.array(image.shape[1::-1]) / 2)
+	            matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
+	            image = cv2.warpAffine(image, matrix, image.shape[1::-1], flags=cv2.INTER_LINEAR,
+	                            borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
+	            matrix = cv2.getRotationMatrix2D(image_center, 0, 1.0)
+	            image = cv2.warpAffine(image, matrix, image.shape[1::-1], flags=cv2.INTER_LINEAR,
+	                            borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
+	            #Removing Blur
+	            #aug = A.GaussianBlur(p=1.0)
+	            #image = aug(image=image)['image']
+	            #Noise Removing
+	            #augNoise=A.MultiplicativeNoise(p=1.0)
+	            #image = augNoise(image=image)['image']
+	            #Removing Distortion
+	            #augDist=A.ElasticTransform(sigma=50, alpha=1, alpha_affine=10, p=1.0)
+	            #image = augDist(image=image)['image']
+	            #Brightness
+	            augBright=A.RandomBrightnessContrast(p=1.0)
+	            image = augBright(image=image)['image']
             _, thresh = cv2.threshold(image, 30, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
             contours, _ = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
 
@@ -92,7 +151,16 @@ def resize(df, size=64, need_progress_bar=True):
 
             roi = image[ymin:ymax,xmin:xmax]
             resized_roi = cv2.resize(roi, (resize_size, resize_size),interpolation=cv2.INTER_AREA)
-            # resized_roi = cv2.resize(roi, (resize_size, resize_size),interpolation=cv2.INTER_CUBIC)
+            #image=affine_image(image)
+            #image= crop_resize(image)
+            #image = cv2.resize(image,(size,size),interpolation=cv2.INTER_AREA)
+            #image=resize_image(image,(64,64))
+            #image = cv2.resize(image,(size,size),interpolation=cv2.INTER_AREA)
+            #gaussian_3 = cv2.GaussianBlur(image, (5,5), cv2.BORDER_DEFAULT) #unblur
+            #image = cv2.addWeighted(image, 1.5, gaussian_3, -0.5, 0, image)
+            #kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]]) #filter
+            #image = cv2.filter2D(image, -1, kernel)
+            #ret,image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
             resized[df.index[i]] = resized_roi.reshape(-1)
     resized = pd.DataFrame(resized).T
     return resized
@@ -176,3 +244,104 @@ def plot_acc(his, epoch, title):
     plt.ylabel('Accuracy')
     plt.legend(loc='lower right')
     plt.show()
+
+
+def plot_count(feature, title, df, size=1):
+    '''
+    Plot count of classes of selected feature; feature is a categorical value
+    param: feature - the feature for which we present the distribution of classes
+    param: title - title to show in the plot
+    param: df - dataframe 
+    param: size - size (from 1 to n), multiplied with 4 - size of plot
+    '''
+    f, ax = plt.subplots(1,1, figsize=(4*size,4))
+    total = float(len(df))
+    g = sns.countplot(df[feature], order = df[feature].value_counts().index[:20], palette='Set3')
+    g.set_title("Number and percentage of {}".format(title))
+    if(size > 2):
+        plt.xticks(rotation=90, size=8)
+    for p in ax.patches:
+        height = p.get_height()
+        ax.text(p.get_x()+p.get_width()/2.,
+                height + 3,
+                '{:1.2f}%'.format(100*height/total),
+                ha="center") 
+    plt.show()
+
+
+def display_image_from_data(data_df, size=5):
+    '''
+    Display grapheme images from sample data
+    param: data_df - sample of data
+    param: size - sqrt(sample size of data)
+    '''
+    # plt.figure()
+    fig, ax = plt.subplots(size,size,figsize=(12,12))
+    # we show grapheme images for a selection of size x size samples
+    for i, index in enumerate(data_df.index):
+        image_id = data_df.iloc[i]['image_id']
+        flattened_image = data_df.iloc[i].drop('image_id').values.astype(np.uint8)
+        unpacked_image = Image.fromarray(flattened_image.reshape(137, 236))
+
+        ax[i//size, i%size].imshow(unpacked_image)
+        ax[i//size, i%size].set_title(image_id)
+        ax[i//size, i%size].axis('on')
+
+
+def display_writting_variety(data_df, train_df, class_map_df, grapheme_root=72, 
+				vowel_diacritic=0, consonant_diacritic=0, size=5):
+    '''
+    This function get a set of grapheme root, vowel diacritic and consonant diacritic
+    and display a sample of 25 images for this grapheme
+    param: data_df - the dataset used as source of data
+    param: grapheme_root - the grapheme root label
+    param: vowel_diacritic - the vowel diacritic label
+    param: consonant_diacritic - the consonant diacritic label 
+    param: size - sqrt(number of images to show)
+    '''
+    sample_train_df = train_df.loc[(train_df.grapheme_root == grapheme_root) & \
+                                  (train_df.vowel_diacritic == vowel_diacritic) & \
+                                  (train_df.consonant_diacritic == consonant_diacritic)]
+    print(f"total: {sample_train_df.shape}")
+    sample_df = data_df.merge(sample_train_df.image_id, how='inner')
+    print(f"total: {sample_df.shape}")
+    gr = sample_train_df.iloc[0]['grapheme']
+    cm_gr = class_map_df.loc[(class_map_df.component_type=='grapheme_root')& \
+                             (class_map_df.label==grapheme_root), 'component'].values[0]
+    cm_vd = class_map_df.loc[(class_map_df.component_type=='vowel_diacritic')& \
+                             (class_map_df.label==vowel_diacritic), 'component'].values[0]    
+    cm_cd = class_map_df.loc[(class_map_df.component_type=='consonant_diacritic')& \
+                             (class_map_df.label==consonant_diacritic), 'component'].values[0]    
+    
+    print(f"grapheme: {gr}, grapheme root: {cm_gr}, vowel discritic: {cm_vd}, consonant diacritic: {cm_cd}")
+    sample_df = sample_df.sample(size * size, random_state=42)
+    display_image_from_data(sample_df, size=size)
+
+
+## image preprocessing
+def bbox(img):
+    rows = np.any(img, axis=1)
+    cols = np.any(img, axis=0)
+    rmin, rmax = np.where(rows)[0][[0, -1]]
+    cmin, cmax = np.where(cols)[0][[0, -1]]
+    return rmin, rmax, cmin, cmax
+
+def crop_resize(img0, size, pad=16):
+    #crop a box around pixels large than the threshold 
+    #some images contain line at the sides
+    WIDTH = 236
+    HEIGHT = 137
+    ymin,ymax,xmin,xmax = bbox(img0[5:-5,5:-5] > 80)
+    #cropping may cut too much, so we need to add it back
+    xmin = xmin - 13 if (xmin > 13) else 0
+    ymin = ymin - 10 if (ymin > 10) else 0
+    xmax = xmax + 13 if (xmax < WIDTH - 13) else WIDTH
+    ymax = ymax + 10 if (ymax < HEIGHT - 10) else HEIGHT
+    img = img0[ymin:ymax,xmin:xmax]
+    #remove lo intensity pixels as noise
+    img[img < 28] = 0
+    lx, ly = xmax-xmin,ymax-ymin
+    l = max(lx,ly) + pad
+    #make sure that the aspect ratio is kept in rescaling
+    img = np.pad(img, [((l-ly)//2,), ((l-lx)//2,)], mode='constant')
+    return cv2.resize(img,(size,size))
