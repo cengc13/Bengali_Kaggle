@@ -5,3 +5,5 @@
 *.tff
 *.zip
 *.h5
+*.pkl
+__pycache__
