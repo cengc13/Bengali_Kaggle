@@ -16,11 +16,13 @@ import pandas as pd
 import numpy as np
 import cv2
 import albumentations as A
+
 ##########################################################################
 # Those utility functions are forked from others' notebooks
 # https://www.kaggle.com/kaushal2896/bengali-graphemes-starter-eda-multi-output-cnn
 # https://www.kaggle.com/gpreda/bengali-ai-handwritten-grapheme-getting-started
 #########################################################################
+
 def get_n(df, field, n, class_map_df, top=True):
     top_graphemes = df.groupby([field]).size().reset_index(name='counts')['counts'].sort_values(ascending=not top)[:n]
     top_grapheme_roots = top_graphemes.index
@@ -29,7 +31,6 @@ def get_n(df, field, n, class_map_df, top=True):
     top_graphemes.drop(['component_type', 'label'], axis=1, inplace=True)
     top_graphemes.loc[:, 'count'] = top_grapheme_counts
     return top_graphemes
-
 
 
 def image_from_char(char, width, height):
@@ -42,125 +43,71 @@ def image_from_char(char, width, height):
     return image
 
 
-def resize(df, size, augment=False, need_progress_bar=True):
+def resize(df, size, plain=True, need_progress_bar=True):
     resized = {}
     resize_size=size
     angle=0
+    ratio = 137/236
     if need_progress_bar:
         for i in tqdm(range(df.shape[0])):
             #image = cv2.resize(df.loc[df.index[i]].values.reshape(137,236),(size,size),None,fx=0.5,fy=0.5,interpolation=cv2.INTER_AREA)
             image=df.loc[df.index[i]].values.reshape(137,236)
-            #Centering
-            if augment:
-	            image_center = tuple(np.array(image.shape[1::-1]) / 2)
-	            matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-	            image = cv2.warpAffine(image, matrix, image.shape[1::-1], flags=cv2.INTER_LINEAR,
-	                            borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
-	            #Scaling
-	            matrix = cv2.getRotationMatrix2D(image_center, 0, 1.0)
-	            image = cv2.warpAffine(image, matrix, image.shape[1::-1], flags=cv2.INTER_LINEAR,
-	                            borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
-	            #Removing Blur
-	            #aug = A.GaussianBlur(p=1.0)
-	            #image = aug(image=image)['image']
-	            #Noise Removing
-	            #augNoise=A.MultiplicativeNoise(p=1.0)
-	            #image = augNoise(image=image)['image']
-	            #Removing Distortion
-	            #augDist=A.ElasticTransform(sigma=50, alpha=1, alpha_affine=10, p=1.0)
-	            #image = augDist(image=image)['image']
-	            #Brightness
-	            augBright=A.RandomBrightnessContrast(p=1.0)
-	            image = augBright(image=image)['image']
-            _, thresh = cv2.threshold(image, 30, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-            contours, _ = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
+            roi = image.copy()
+            if not plain:
+                _, thresh = cv2.threshold(image, 30, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+                contours, _ = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
 
-            idx = 0
-            ls_xmin = []
-            ls_ymin = []
-            ls_xmax = []
-            ls_ymax = []
-            for cnt in contours:
-                idx += 1
-                x,y,w,h = cv2.boundingRect(cnt)
-                ls_xmin.append(x)
-                ls_ymin.append(y)
-                ls_xmax.append(x + w)
-                ls_ymax.append(y + h)
-            xmin = min(ls_xmin)
-            ymin = min(ls_ymin)
-            xmax = max(ls_xmax)
-            ymax = max(ls_ymax)
+                idx = 0
+                ls_xmin = []
+                ls_ymin = []
+                ls_xmax = []
+                ls_ymax = []
+                for cnt in contours:
+                    idx += 1
+                    x,y,w,h = cv2.boundingRect(cnt)
+                    ls_xmin.append(x)
+                    ls_ymin.append(y)
+                    ls_xmax.append(x + w)
+                    ls_ymax.append(y + h)
+                xmin = min(ls_xmin)
+                ymin = min(ls_ymin)
+                xmax = max(ls_xmax)
+                ymax = max(ls_ymax)
 
-            roi = image[ymin:ymax,xmin:xmax]
-            resized_roi = cv2.resize(roi, (resize_size, resize_size),interpolation=cv2.INTER_AREA)
-            #image=affine_image(image)
-            #image= crop_resize(image)
-            #image = cv2.resize(image,(size,size),interpolation=cv2.INTER_AREA)
-            #image=resize_image(image,(64,64))
-            #image = cv2.resize(image,(size,size),interpolation=cv2.INTER_AREA)
-            #gaussian_3 = cv2.GaussianBlur(image, (5,5), cv2.BORDER_DEFAULT) #unblur
-            #image = cv2.addWeighted(image, 1.5, gaussian_3, -0.5, 0, image)
-            #kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]]) #filter
-            #image = cv2.filter2D(image, -1, kernel)
-            #ret,image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+                roi = image[ymin:ymax,xmin:xmax]
+            resized_roi = cv2.resize(roi, (resize_size, int(resize_size*ratio)),
+                interpolation=cv2.INTER_AREA)
             resized[df.index[i]] = resized_roi.reshape(-1)
     else:
         for i in range(df.shape[0]):
             #image = cv2.resize(df.loc[df.index[i]].values.reshape(137,236),(size,size),None,fx=0.5,fy=0.5,interpolation=cv2.INTER_AREA)
             image=df.loc[df.index[i]].values.reshape(137,236)
-            if augment:
-	            image_center = tuple(np.array(image.shape[1::-1]) / 2)
-	            matrix = cv2.getRotationMatrix2D(image_center, angle, 1.0)
-	            image = cv2.warpAffine(image, matrix, image.shape[1::-1], flags=cv2.INTER_LINEAR,
-	                            borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
-	            matrix = cv2.getRotationMatrix2D(image_center, 0, 1.0)
-	            image = cv2.warpAffine(image, matrix, image.shape[1::-1], flags=cv2.INTER_LINEAR,
-	                            borderMode=cv2.BORDER_CONSTANT, borderValue=(0, 0, 0))
-	            #Removing Blur
-	            #aug = A.GaussianBlur(p=1.0)
-	            #image = aug(image=image)['image']
-	            #Noise Removing
-	            #augNoise=A.MultiplicativeNoise(p=1.0)
-	            #image = augNoise(image=image)['image']
-	            #Removing Distortion
-	            #augDist=A.ElasticTransform(sigma=50, alpha=1, alpha_affine=10, p=1.0)
-	            #image = augDist(image=image)['image']
-	            #Brightness
-	            augBright=A.RandomBrightnessContrast(p=1.0)
-	            image = augBright(image=image)['image']
-            _, thresh = cv2.threshold(image, 30, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
-            contours, _ = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
+            roi = image.copy()
+            ratio = 137/236
+            if not plain:
+                _, thresh = cv2.threshold(image, 30, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+                contours, _ = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
 
-            idx = 0 
-            ls_xmin = []
-            ls_ymin = []
-            ls_xmax = []
-            ls_ymax = []
-            for cnt in contours:
-                idx += 1
-                x,y,w,h = cv2.boundingRect(cnt)
-                ls_xmin.append(x)
-                ls_ymin.append(y)
-                ls_xmax.append(x + w)
-                ls_ymax.append(y + h)
-            xmin = min(ls_xmin)
-            ymin = min(ls_ymin)
-            xmax = max(ls_xmax)
-            ymax = max(ls_ymax)
+                idx = 0
+                ls_xmin = []
+                ls_ymin = []
+                ls_xmax = []
+                ls_ymax = []
+                for cnt in contours:
+                    idx += 1
+                    x,y,w,h = cv2.boundingRect(cnt)
+                    ls_xmin.append(x)
+                    ls_ymin.append(y)
+                    ls_xmax.append(x + w)
+                    ls_ymax.append(y + h)
+                xmin = min(ls_xmin)
+                ymin = min(ls_ymin)
+                xmax = max(ls_xmax)
+                ymax = max(ls_ymax)
 
-            roi = image[ymin:ymax,xmin:xmax]
-            resized_roi = cv2.resize(roi, (resize_size, resize_size),interpolation=cv2.INTER_AREA)
-            #image=affine_image(image)
-            #image= crop_resize(image)
-            #image = cv2.resize(image,(size,size),interpolation=cv2.INTER_AREA)
-            #image=resize_image(image,(64,64))
-            #image = cv2.resize(image,(size,size),interpolation=cv2.INTER_AREA)
-            #gaussian_3 = cv2.GaussianBlur(image, (5,5), cv2.BORDER_DEFAULT) #unblur
-            #image = cv2.addWeighted(image, 1.5, gaussian_3, -0.5, 0, image)
-            #kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]]) #filter
-            #image = cv2.filter2D(image, -1, kernel)
-            #ret,image = cv2.threshold(image, 128, 255, cv2.THRESH_BINARY_INV+cv2.THRESH_OTSU)
+                roi = image[ymin:ymax,xmin:xmax]
+            resized_roi = cv2.resize(roi, (resize_size, int(resize_size*ratio)),
+                interpolation=cv2.INTER_AREA)
             resized[df.index[i]] = resized_roi.reshape(-1)
     resized = pd.DataFrame(resized).T
     return resized
@@ -289,7 +236,7 @@ def display_image_from_data(data_df, size=5):
 
 
 def display_writting_variety(data_df, train_df, class_map_df, grapheme_root=72, 
-				vowel_diacritic=0, consonant_diacritic=0, size=5):
+                vowel_diacritic=0, consonant_diacritic=0, size=5):
     '''
     This function get a set of grapheme root, vowel diacritic and consonant diacritic
     and display a sample of 25 images for this grapheme
@@ -345,3 +292,18 @@ def crop_resize(img0, size, pad=16):
     #make sure that the aspect ratio is kept in rescaling
     img = np.pad(img, [((l-ly)//2,), ((l-lx)//2,)], mode='constant')
     return cv2.resize(img,(size,size))
+
+
+def cutout_shiftscalerotate(image):
+    if len(image.shape) > 2:
+        width, height, _ = image.shape
+    else:
+        width, height = image.shape
+    aug=A.Compose(
+        [A.ShiftScaleRotate(shift_limit=0.15, scale_limit=0.1, 
+        rotate_limit=15, border_mode=cv2.BORDER_REFLECT_101, p=0.5),
+        A.Cutout(num_holes=1, max_h_size=width//2, max_w_size=height//2,
+            fill_value=0., p=0.5)]                     
+        )
+    image = aug(image=image)['image']
+    return image
