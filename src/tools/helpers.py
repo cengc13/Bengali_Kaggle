@@ -43,16 +43,16 @@ def image_from_char(char, width, height):
     return image
 
 
-def resize(df, size, plain=True, need_progress_bar=True):
+def resize(df, size, plain=False, need_progress_bar=True):
     resized = {}
     resize_size=size
     angle=0
-    ratio = 137/236
+    # ratio = 137/236
     if need_progress_bar:
         for i in tqdm(range(df.shape[0])):
             #image = cv2.resize(df.loc[df.index[i]].values.reshape(137,236),(size,size),None,fx=0.5,fy=0.5,interpolation=cv2.INTER_AREA)
             image=df.loc[df.index[i]].values.reshape(137,236)
-            roi = image.copy()
+            # roi = image.copy()
             if not plain:
                 _, thresh = cv2.threshold(image, 30, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
                 contours, _ = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
@@ -75,15 +75,14 @@ def resize(df, size, plain=True, need_progress_bar=True):
                 ymax = max(ls_ymax)
 
                 roi = image[ymin:ymax,xmin:xmax]
-            resized_roi = cv2.resize(roi, (resize_size, int(resize_size*ratio)),
+            resized_roi = cv2.resize(roi, (resize_size, resize_size),
                 interpolation=cv2.INTER_AREA)
             resized[df.index[i]] = resized_roi.reshape(-1)
     else:
         for i in range(df.shape[0]):
             #image = cv2.resize(df.loc[df.index[i]].values.reshape(137,236),(size,size),None,fx=0.5,fy=0.5,interpolation=cv2.INTER_AREA)
             image=df.loc[df.index[i]].values.reshape(137,236)
-            roi = image.copy()
-            ratio = 137/236
+            # roi = image.copy()
             if not plain:
                 _, thresh = cv2.threshold(image, 30, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
                 contours, _ = cv2.findContours(thresh,cv2.RETR_LIST,cv2.CHAIN_APPROX_SIMPLE)[-2:]
@@ -106,7 +105,7 @@ def resize(df, size, plain=True, need_progress_bar=True):
                 ymax = max(ls_ymax)
 
                 roi = image[ymin:ymax,xmin:xmax]
-            resized_roi = cv2.resize(roi, (resize_size, int(resize_size*ratio)),
+            resized_roi = cv2.resize(roi, (resize_size, resize_size),
                 interpolation=cv2.INTER_AREA)
             resized[df.index[i]] = resized_roi.reshape(-1)
     resized = pd.DataFrame(resized).T
