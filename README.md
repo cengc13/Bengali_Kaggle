@@ -1,6 +1,16 @@
-# Kaggle Competition & 2040 Midterm: Bengali.Al Handwritten Grapheme # 
+# Kaggle Competition & 2040 Midterm: Bengali.Al Handwritten Grapheme Classification # 
 
 The midterm project aims to develop a deep learning model which can identify the three constituent elements in a handwritten Bengli character. 
+
+Links for the Blogs can be found at
+
+- Initial Blog:https://medium.com/@wangzhi62948620/bengali-al-handwritten-graphemes-classification-initial-blog-post-f2d87c94968a
+- Midway Blog:https://medium.com/@wangzhi62948620/bengali-al-handwritten-graphemes-classification-82cb684f58b5
+- Final Blog：https://medium.com/@wangzhi62948620/bengali-al-handwritten-graphemes-classification-final-blog-bd703df7d97b
+
+The link for the inference Kaggle Kernel:
+
+- Kaggle entry:https://www.kaggle.com/cengc13/bengali-handwritten-grapheme-inference
 
 ## Packages
 
